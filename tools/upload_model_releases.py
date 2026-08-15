@@ -69,13 +69,34 @@ class GitHub:
         headers = dict(self.headers)
         if content_type:
             headers["Content-Type"] = content_type
-        request = urllib.request.Request(url, data=data, headers=headers, method=method)
-        try:
-            with urllib.request.urlopen(request) as response:
-                return json.load(response)
-        except urllib.error.HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"GitHub API returned {error.code}: {detail}") from error
+        while True:
+            request = urllib.request.Request(
+                url, data=data, headers=headers, method=method
+            )
+            try:
+                with urllib.request.urlopen(request) as response:
+                    return json.load(response)
+            except urllib.error.HTTPError as error:
+                detail = error.read().decode("utf-8", errors="replace")
+                remaining = error.headers.get("X-RateLimit-Remaining")
+                is_rate_limit = error.code == 403 and (
+                    remaining == "0" or "rate limit exceeded" in detail.lower()
+                )
+                if is_rate_limit:
+                    reset = error.headers.get("X-RateLimit-Reset")
+                    wait_seconds = 3600
+                    if reset:
+                        wait_seconds = max(2, int(reset) - int(time.time()) + 2)
+                    print(
+                        "GitHub API limit reached; "
+                        f"retrying in {wait_seconds} seconds.",
+                        flush=True,
+                    )
+                    time.sleep(wait_seconds)
+                    continue
+                raise RuntimeError(
+                    f"GitHub API returned {error.code}: {detail}"
+                ) from error
 
     def release(self, tag: str, start: int, end: int) -> dict:
         encoded_tag = urllib.parse.quote(tag, safe="")
@@ -209,6 +230,17 @@ def main() -> None:
 
             archive_name = f"{number}.zip"
             preview_name = f"{number}.comparison.png"
+
+            if archive_name in assets and preview_name in assets:
+                print(f"Skipping existing package for {number}", flush=True)
+                manifest["tokens"][number] = {
+                    "release": tag,
+                    "preview_url": assets[preview_name]["browser_download_url"],
+                    "download_url": assets[archive_name]["browser_download_url"],
+                }
+                save_manifest(args.manifest, manifest)
+                continue
+
             archive, preview = package_token(args.source, token, temp_dir)
 
             if archive_name not in assets:
