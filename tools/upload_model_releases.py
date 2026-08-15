@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import mimetypes
 import os
@@ -32,7 +33,7 @@ def github_token() -> str:
         input="protocol=https\nhost=github.com\n\n",
         text=True,
         capture_output=True,
-        check=True,
+        check=False,
     )
     values = dict(
         line.split("=", 1)
@@ -41,7 +42,9 @@ def github_token() -> str:
     )
     token = values.get("password")
     if not token:
-        raise RuntimeError("No GitHub HTTPS credential or GITHUB_TOKEN was found")
+        token = getpass.getpass("GitHub token: ").strip()
+    if not token:
+        raise RuntimeError("A GitHub token is required")
     return token
 
 
