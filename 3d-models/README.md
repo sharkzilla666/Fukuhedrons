@@ -7,3 +7,7 @@ This is an independent third-party project. It was not created by, endorsed by, 
 ## Downloads
 
 Model packages and comparison previews are published as GitHub Release assets. Each numbered ZIP contains the corresponding Blender file and comparison image. `manifest.json` maps token numbers to their preview and download URLs.
+
+## License
+
+This community-created project is available under the [MIT License](../LICENSE). The license applies only to material the project author has the right to license. Fukuhedrons characters and underlying intellectual property remain subject to the rights and terms granted by HiFo Labs.
